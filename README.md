@@ -30,9 +30,6 @@ go-import-mananager replace main.go "fmt" "github.com/foo/my-fmt"
 ## Build
 ```bash
 go get "github.com/wdullaer/go-import-manager"
-go get "github.com/urfave/cli"
-cd $GOPATH/src/github.com/wdullaer/go-import-manager
-go build
 ```
 
 ## TODO

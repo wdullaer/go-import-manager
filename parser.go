@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"go/ast"
 	"go/parser"
@@ -55,7 +56,7 @@ func AddImports(fname string, imports []string) (string, error) {
 		if ok && decl.Tok == token.IMPORT {
 			// Add all the imports
 			for _, v := range imports {
-				decl.Specs = append(decl.Specs, &ast.ImportSpec{Path: &ast.BasicLit{Value: strconv.Quote(v)}})
+				decl.Specs = append(decl.Specs, &ast.ImportSpec{Path: &ast.BasicLit{Value: ensureQuotes(v)}})
 			}
 			return false
 		}
@@ -81,7 +82,7 @@ func RemoveImports(fname string, imports []string) (string, error) {
 	}
 
 	for i, imp := range imports {
-		imp = strconv.Quote(imp)
+		imp = ensureQuotes(imp)
 		imports[i] = imp
 		if !includes(oldImports, imp) {
 			fmt.Println("WARN: Could not find import", imp)
@@ -115,8 +116,8 @@ func ReplaceImport(fname string, oldImport string, newImport string) (string, er
 	if err != nil {
 		return "", err
 	}
-	oldImport = strconv.Quote(oldImport)
-	newImport = strconv.Quote(newImport)
+	oldImport = ensureQuotes(oldImport)
+	newImport = ensureQuotes(newImport)
 
 	imports := make([]string, len(node.Imports))
 	for i, v := range node.Imports {
@@ -162,4 +163,14 @@ func astToString(fset *token.FileSet, node interface{}) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func ensureQuotes(str string) string {
+	if strings.HasPrefix(str, "\"") && strings.HasSuffix(str, "\"") {
+		return str
+	}
+	if (strings.HasPrefix(str, "_ ")) {
+		return str
+	}
+	return strconv.Quote(str)
 }
