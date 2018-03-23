@@ -21,12 +21,24 @@ import (
 	"github.com/urfave/cli"
 )
 
+// getOutput will open a writable file or return stdout if file is empty.
+func getOutput(file string) (*os.File, error) {
+	if file == "" {
+		return os.Stdout, nil
+	}
+	output, err := os.Create(file)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "go-import-manager"
 	app.Usage = "Reliably manipulate import statements of a go file"
 	app.EnableBashCompletion = true
-	app.Version = "0.1.0"
+	app.Version = "0.2.0"
 
 	app.Commands = []cli.Command{
 		{
@@ -34,6 +46,12 @@ func main() {
 			Aliases:   []string{"l"},
 			Usage:     "list all current imports",
 			ArgsUsage: "FILE",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "output, o",
+					Usage: "The `file` to which the output will be written (default: stdout)",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					fmt.Println("list takes exactly one argument: the path of the file to analyze")
@@ -46,8 +64,16 @@ func main() {
 				if err != nil {
 					return cli.NewExitError(err.Error(), 1)
 				}
+
+				// Parse the output flag
+				output, err := getOutput(c.String("output"))
+				if err != nil {
+					return cli.NewExitError(err.Error(), 1)
+				}
+				defer output.Close()
+
 				for _, v := range imports {
-					fmt.Println(v)
+					fmt.Fprintln(output, v)
 				}
 				return nil
 			},
@@ -57,6 +83,16 @@ func main() {
 			Aliases:   []string{"a"},
 			Usage:     "add an import to the file",
 			ArgsUsage: "FILE IMPORT [IMPORT...]",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "inplace, i",
+					Usage: "Set to edit the file in place",
+				},
+				cli.StringFlag{
+					Name:  "output, o",
+					Usage: "The `file` to which the output will be written (default: stdout)",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				if c.NArg() < 2 {
 					fmt.Println("add takes 2 or more arguments: the file path and 1 or more import statements")
@@ -65,12 +101,25 @@ func main() {
 				}
 				file := c.Args()[0]
 				imports := c.Args()[1:]
+				inplace := c.Bool("inplace")
 
 				str, err := AddImports(file, imports)
 				if err != nil {
 					return cli.NewExitError(err.Error(), 1)
 				}
-				_, err = fmt.Fprint(os.Stdout, str)
+
+				// Parse the output flag
+				outfile := c.String("output")
+				if inplace {
+					outfile = file
+				}
+				output, err := getOutput(outfile)
+				if err != nil {
+					return cli.NewExitError(err.Error(), 1)
+				}
+				defer output.Close()
+
+				_, err = fmt.Fprint(output, str)
 				if err != nil {
 					return cli.NewExitError(err.Error(), 1)
 				}
@@ -83,6 +132,16 @@ func main() {
 			Aliases:   []string{"d"},
 			Usage:     "delete an import from a file",
 			ArgsUsage: "FILE IMPORT [IMPORT...]",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "inplace, i",
+					Usage: "Set to edit the file in place",
+				},
+				cli.StringFlag{
+					Name:  "output, o",
+					Usage: "The `file` to which the output will be written (default: stdout)",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				if c.NArg() < 2 {
 					fmt.Println("delete takes 2 or more arguments: the file path and 1 or more import statements")
@@ -91,12 +150,25 @@ func main() {
 				}
 				file := c.Args()[0]
 				imports := c.Args()[1:]
+				inplace := c.Bool("inplace")
 
 				str, err := RemoveImports(file, imports)
 				if err != nil {
 					return cli.NewExitError(err.Error(), 1)
 				}
-				_, err = fmt.Fprint(os.Stdout, str)
+
+				// Parse the output flag
+				outfile := c.String("output")
+				if inplace {
+					outfile = file
+				}
+				output, err := getOutput(outfile)
+				if err != nil {
+					return cli.NewExitError(err.Error(), 1)
+				}
+				defer output.Close()
+
+				_, err = fmt.Fprint(output, str)
 				if err != nil {
 					return cli.NewExitError(err.Error(), 1)
 				}
@@ -109,6 +181,16 @@ func main() {
 			Aliases:   []string{"r"},
 			Usage:     "replace an import with another one in a file",
 			ArgsUsage: "FILE OLD_IMPORT NEW_IMPORT",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "inplace, i",
+					Usage: "Set to edit the file in place",
+				},
+				cli.StringFlag{
+					Name:  "output, o",
+					Usage: "The `file` to which the output will be written (default: stdout)",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 3 {
 					fmt.Println("replace takes exactly 3 arguments: the file path, the old import statement and the new import statement")
@@ -118,12 +200,25 @@ func main() {
 				file := c.Args()[0]
 				oldImport := c.Args()[1]
 				newImport := c.Args()[2]
+				inplace := c.Bool("inplace")
 
 				str, err := ReplaceImport(file, oldImport, newImport)
 				if err != nil {
 					return cli.NewExitError(err.Error(), 1)
 				}
-				_, err = fmt.Fprint(os.Stdout, str)
+
+				// Parse the output flag
+				outfile := c.String("output")
+				if inplace {
+					outfile = file
+				}
+				output, err := getOutput(outfile)
+				if err != nil {
+					return cli.NewExitError(err.Error(), 1)
+				}
+				defer output.Close()
+
+				_, err = fmt.Fprint(output, str)
 				if err != nil {
 					return cli.NewExitError(err.Error(), 1)
 				}
